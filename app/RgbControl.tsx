@@ -5,18 +5,38 @@ export default function RgbControl({ sendCommand }: { sendCommand: (c: string) =
   const [r, setR] = useState(128);
   const [g, setG] = useState(128);
   const [b, setB] = useState(128);
+  const [isCommonAnode, setIsCommonAnode] = useState(false);
   const [hex, setHex] = useState("#808080");
 
   const updateFromRgb = (newR: number, newG: number, newB: number) => {
     const h = `#${newR.toString(16).padStart(2,'0')}${newG.toString(16).padStart(2,'0')}${newB.toString(16).padStart(2,'0')}`;
     setHex(h);
-    sendCommand(`RGB:${newR},${newG},${newB}`);
+    
+    // Ortak Anot'ta 255 tam parlaklık değil, 0 tam parlaklıktır (tersi).
+    const finalR = isCommonAnode ? 255 - newR : newR;
+    const finalG = isCommonAnode ? 255 - newG : newG;
+    const finalB = isCommonAnode ? 255 - newB : newB;
+    sendCommand(`RGB:${finalR},${finalG},${finalB}`);
   };
 
   return (
     <div className="max-w-md mx-auto space-y-6">
       <div className="w-full h-32 rounded-xl border shadow-inner" style={{ backgroundColor: hex }} />
       
+      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border">
+        <span className="font-bold text-sm text-gray-600">LED TİPİ</span>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => { setIsCommonAnode(false); updateFromRgb(r, g, b); }}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isCommonAnode ? "bg-blue-600 text-white shadow-md" : "bg-white text-gray-400"}`}
+          >ORTAK KATOT</button>
+          <button 
+            onClick={() => { setIsCommonAnode(true); updateFromRgb(r, g, b); }}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${isCommonAnode ? "bg-blue-600 text-white shadow-md" : "bg-white text-gray-400"}`}
+          >ORTAK ANOT</button>
+        </div>
+      </div>
+
       <div className="space-y-4">
         {[
           { label: 'R', val: r, set: setR, color: "text-red-500" },
