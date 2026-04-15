@@ -1,7 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
+import RgbControl from "./RgbControl";
+import BluetoothTerminal from "./BluetoothTerminal";
+import JoystickControl from "./JoystickControl";
+import KeypadControl from "./KeypadControl";
+import VoiceControl from "./VoiceControl";
+import SimpleLed from "./SimpleLed";
 
-// TypeScript'e navigator içinde bluetooth olduğunu tanımlıyoruz
 declare global {
   interface Navigator {
     bluetooth: {
@@ -14,18 +19,20 @@ export default function EgeRobotKontrol() {
   const [characteristic, setCharacteristic] = useState<any>(null);
   const [status, setStatus] = useState("Bağlı Değil");
   const [logs, setLogs] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("terminal");
+  const [baudRate, setBaudRate] = useState("9600");
 
-  // Terminale mesaj yazdırma fonksiyonu
+  const baudRates = ["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600", "1382400"];
+
   const addLog = (message: string) => {
-    setLogs((prev) => [message, ...prev].slice(0, 5));
+    setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev].slice(0, 50));
   };
 
-  // Bluetooth Bağlantısı (Hata Yönetimi Eklenmiş Versiyon)
   const connectBT = async () => {
     addLog("Cihaz aranıyor...");
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [0xFFE0] }], // HC-06 servisi
+        filters: [{ services: [0xFFE0] }], 
         optionalServices: [0xFFE1]
       });
       
@@ -35,7 +42,7 @@ export default function EgeRobotKontrol() {
       const char = await service?.getCharacteristic(0xFFE1);
       
       setCharacteristic(char);
-      setStatus("Bağlantı Başarılı! 🦅");
+      setStatus("Bağlantı Başarılı!");
       addLog("Bağlantı kuruldu!");
       
     } catch (err: any) {
@@ -50,89 +57,77 @@ export default function EgeRobotKontrol() {
     }
   };
 
-  // Komut Gönder
   const sendCommand = async (cmd: string) => {
     if (characteristic) {
       try {
         const encoder = new TextEncoder();
         await characteristic.writeValue(encoder.encode(cmd));
-        addLog(`Komut: ${cmd}`);
       } catch (err) {
-        addLog("Gönderim hatası!");
+        addLog("Veri gönderme hatası!");
       }
     }
   };
 
-  // Klavye Kontrolleri
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      if (e.key === "ArrowUp") sendCommand("F");
-      if (e.key === "ArrowDown") sendCommand("B");
-      if (e.key === "ArrowLeft") sendCommand("L");
-      if (e.key === "ArrowRight") sendCommand("R");
-    };
-    const handleKeyUp = () => sendCommand("S");
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [characteristic]);
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 font-mono">
-      <h1 className="text-3xl font-bold mb-2 text-blue-500">EGE ROBOTICS CONTROL</h1>
-      <p className="mb-6 text-sm">Durum: <span className={status.includes("Başarılı") ? "text-green-400" : "text-red-400"}>{status}</span></p>
-
-      <button 
-        onClick={connectBT}
-        className="bg-blue-600 hover:bg-blue-700 active:scale-95 px-8 py-3 rounded-xl font-bold mb-10 transition-all shadow-lg shadow-blue-900"
-      >
-        BLUETOOTH BAĞLAN
-      </button>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-4xl">
-        {/* Hareket ve Sulama Alanı */}
-        <div className="flex flex-col items-center p-8 bg-gray-900 rounded-3xl border border-blue-900 shadow-2xl">
-          <h2 className="mb-6 font-bold text-blue-400 text-xl tracking-widest text-center">KONTROL PANELİ</h2>
-          
-          <div className="grid grid-cols-3 gap-3 mb-10">
-            <div />
-            <button onMouseDown={() => sendCommand("F")} onMouseUp={() => sendCommand("S")} className="bg-gray-800 h-16 w-16 rounded-xl text-2xl active:bg-blue-600 flex items-center justify-center">⬆️</button>
-            <div />
-            <button onMouseDown={() => sendCommand("L")} onMouseUp={() => sendCommand("S")} className="bg-gray-800 h-16 w-16 rounded-xl text-2xl active:bg-blue-600 flex items-center justify-center">⬅️</button>
-            <button onClick={() => sendCommand("S")} className="bg-red-600 h-16 w-16 rounded-xl font-bold text-xs flex items-center justify-center">DUR</button>
-            <button onMouseDown={() => sendCommand("R")} onMouseUp={() => sendCommand("S")} className="bg-gray-800 h-16 w-16 rounded-xl text-2xl active:bg-blue-600 flex items-center justify-center">➡️</button>
-            <div />
-            <button onMouseDown={() => sendCommand("B")} onMouseUp={() => sendCommand("S")} className="bg-gray-800 h-16 w-16 rounded-xl text-2xl active:bg-blue-600 flex items-center justify-center">⬇️</button>
-            <div />
-          </div>
-
+    <div className="min-h-screen bg-white text-black font-sans flex flex-col">
+      {/* Üst Header */}
+      <header className="w-full p-4 border-b flex justify-between items-center bg-gray-50">
+        <h1 className="text-xl font-bold text-gray-800">Arduino Bluetooth Kontrol Paneli</h1>
+        <div className="flex items-center gap-4">
+          <span className={`text-xs ${status.includes("Başarılı") ? "text-green-600" : "text-red-600"}`}>{status}</span>
           <button 
-            onMouseDown={() => sendCommand("W")} 
-            onMouseUp={() => sendCommand("w")}
-            className="w-full bg-blue-500 hover:bg-blue-400 active:bg-blue-800 py-6 rounded-2xl font-black text-2xl transition-all shadow-inner"
+            onClick={connectBT}
+            className="bg-[#00ff00] hover:bg-[#00cc00] text-white px-6 py-2 rounded-full font-bold transition-all shadow-md active:scale-95"
           >
-            💦 SU SIK 💦
+            BAĞLAN
           </button>
         </div>
+      </header>
 
-        {/* Terminal Log Alanı */}
-        <div className="p-8 bg-gray-900 rounded-3xl border border-green-900">
-          <h2 className="mb-4 font-bold text-green-500">SİSTEM TERMİNALİ</h2>
-          <div className="bg-black p-4 rounded-xl h-40 overflow-hidden border border-gray-800 flex flex-col gap-1">
-            {logs.map((log, index) => (
-              <p key={index} className="text-green-500 text-xs font-mono">
-                <span className="opacity-50">{">"}</span> {log}
-              </p>
-            ))}
-            <div className="w-2 h-4 bg-green-500 animate-pulse"></div>
-          </div>
-          <p className="mt-6 text-[10px] text-gray-500 italic text-center uppercase tracking-widest">İlter Robot Takımı // Ege Şentürk</p>
+      {/* Ana İçerik */}
+      <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
+        <nav className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8 justify-items-center">
+          {[
+            { id: "rgb", label: "RGB LED", icon: "🎨" },
+            { id: "terminal", label: "BT Terminal", icon: "💻" },
+            { id: "joystick", label: "Joystick", icon: "🕹️" },
+            { id: "buttons", label: "Butonlar", icon: "🔘" },
+            { id: "keypad", label: "4x4 Tuş Takımı", icon: "⌨️" },
+            { id: "voice", label: "Ses Terminali", icon: "🎤" },
+            { id: "led", label: "LED ON/OFF", icon: "💡" }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full aspect-square max-w-[140px] rounded-3xl flex flex-col items-center justify-center gap-3 font-bold transition-all shadow-sm border-2 ${activeTab === tab.id ? "bg-blue-600 text-white border-blue-700 scale-105 shadow-md" : "bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50"}`}
+            >
+              <span className="text-3xl">{tab.icon}</span>
+              <span className="text-xs uppercase tracking-tight leading-tight">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="bg-gray-50 rounded-2xl p-6 border shadow-sm min-h-[400px]">
+          {activeTab === "rgb" && <RgbControl sendCommand={sendCommand} />}
+          {activeTab === "terminal" && <BluetoothTerminal logs={logs} addLog={addLog} sendCommand={sendCommand} />}
+          {activeTab === "joystick" && <JoystickControl sendCommand={sendCommand} />}
+          {activeTab === "buttons" && <SimpleLed sendCommand={sendCommand} />}
+          {activeTab === "keypad" && <KeypadControl sendCommand={sendCommand} />}
+          {activeTab === "voice" && <VoiceControl addLog={addLog} sendCommand={sendCommand} />}
+          {activeTab === "led" && <SimpleLed sendCommand={sendCommand} />}
         </div>
+      </main>
+
+      {/* Sağ Alt Baud Seçimi */}
+      <div className="fixed bottom-4 right-4 bg-white border p-2 rounded-xl shadow-xl flex items-center gap-2">
+        <label className="text-xs font-bold text-gray-500">BAUD:</label>
+        <select 
+          value={baudRate} 
+          onChange={(e) => setBaudRate(e.target.value)}
+          className="text-sm outline-none bg-transparent font-mono cursor-pointer"
+        >
+          {baudRates.map(b => <option key={b} value={b}>{b}</option>)}
+        </select>
       </div>
     </div>
   );
