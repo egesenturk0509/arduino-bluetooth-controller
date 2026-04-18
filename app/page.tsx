@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BluetoothView from "./BluetoothView";
 import UsbView from "./UsbView";
 
@@ -27,8 +27,16 @@ export default function EgeRobotKontrol() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const baudRates = ["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600", "1382400"];
+
+  useEffect(() => {
+    const savedLogin = localStorage.getItem("isLoggedIn") || sessionStorage.getItem("isLoggedIn");
+    if (savedLogin === "true") {
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   const addLog = (message: string) => {
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev].slice(0, 50));
@@ -135,11 +143,22 @@ export default function EgeRobotKontrol() {
   };
 
   const handleLogin = () => {
-    if (username === "ege.senturk" && password === "ege0514") {
+    if (username.trim() === "ege.senturk" && password === "ege0514") {
       setIsLoggedIn(true);
+      if (rememberMe) {
+        localStorage.setItem("isLoggedIn", "true");
+      } else {
+        sessionStorage.setItem("isLoggedIn", "true");
+      }
     } else {
       alert("Yanlış kullanıcı adı veya şifre!");
     }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem("isLoggedIn");
+    sessionStorage.removeItem("isLoggedIn");
   };
 
   if (!isLoggedIn) {
@@ -184,6 +203,16 @@ export default function EgeRobotKontrol() {
               )}
             </button>
           </div>
+          <div className="flex items-center gap-2 px-1">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 cursor-pointer accent-blue-600"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-600 font-medium cursor-pointer select-none">Beni Hatırla</label>
+          </div>
           <button
             onClick={handleLogin}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-xl hover:bg-blue-700 transition-colors font-bold shadow-lg"
@@ -199,7 +228,11 @@ export default function EgeRobotKontrol() {
     <div className="min-h-screen bg-white text-black font-sans flex flex-col">
       {/* Üst Header */}
       <header className="w-full p-6 border-b flex flex-col items-center bg-gray-50 gap-4">
-        <h1 className="text-2xl font-black text-gray-800 uppercase tracking-tighter text-center">Arduino Bluetooth ve USB Kontrol Paneli</h1>
+        <div className="w-full flex justify-between items-center max-w-6xl">
+          <div className="w-20" /> {/* Spacer */}
+          <h1 className="text-2xl font-black text-gray-800 uppercase tracking-tighter text-center">Arduino Bluetooth ve USB Kontrol Paneli</h1>
+          <button onClick={handleLogout} className="text-xs font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-widest">ÇIKIŞ YAP</button>
+        </div>
         <div className="flex items-center gap-6">
           <span className={`text-xs font-bold px-4 py-1.5 rounded-full border ${status.includes("Bağlı") || status.includes("Başarılı") ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
             DURUM: {status.toUpperCase()}
